@@ -34,6 +34,7 @@
 #include "TextUtil.h"
 #include "UnicodeBidi.h"
 #include <wtf/Scope.h>
+#include <wtf/SIMDHelpers.h>
 #include <wtf/text/TextBreakIterator.h>
 #include <wtf/unicode/CharacterNames.h>
 
@@ -44,6 +45,33 @@ struct WhitespaceContent {
     size_t length { 0 };
     bool isWordSeparator { true };
 };
+
+template <typename CharacterType>
+static std::vector<size_t> findWhitespacePositions(std::span<const CharacterType> characters, bool preserveNewline, bool preserveTab)
+{
+    using SIMDRegister = decltype(SIMD::splat(space));
+    static_assert(sizeof(SIMDRegister) % sizeof(CharacterType) == 0, "SIMD register size should be a multiple of the character size");
+
+    auto whitespacePositions = std::vector<size_t> {}
+    auto constexpr charactersPerRegister = sizeof(SIMDRegister) / sizeof(CharacterType);
+    auto const* const rawCharacters = characters.data(); // Not using std::span::operator[] to bypass the bounds check.;
+    for (size_t position = 0; position < characters.size(); position += charactersPerRegister) {
+        auto const characterVector = SIMD::load(rawCharacters[position]);
+        auto whitespaceMatches = SIMD::equal<space>(characterVector);
+        if (!preserveNewline)
+            whitespaceMatches = SIMD::merge(whitespaceMatches, SIMD::equal<newlineCharacter>(characterVector));
+        if (!preserveTab)
+            whitespaceMatches = SIMD::merge(whitespaceMatches, SIMD::equal<tabCharacter>(characterVector));
+        if (isNonZero(whitespaceMatches)) {
+            for (int registerLane = 0; registerLane < charactersPerRegister; ++registerLane) {
+                if (SIMD::extract(whitespaceMatches, registerLane)) {
+                    whitespacePositions.push_back(position + registerLane);
+                }
+            }
+        }
+    }
+    return whitespacePositions;
+}
 
 template<typename CharacterType>
 static std::optional<WhitespaceContent> moveToNextNonWhitespacePosition(std::span<const CharacterType> characters, size_t startPosition, bool preserveNewline, bool preserveTab, bool stopAtWordSeparatorBoundary)

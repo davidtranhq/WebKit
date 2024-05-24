@@ -279,6 +279,53 @@ ALWAYS_INLINE simde_uint64x2_t lessThan(simde_uint64x2_t lhs, simde_uint64x2_t r
     return simde_vcltq_u64(lhs, rhs);
 }
 
+
+ALWAYS_INLINE uint8_t extract(simde_uint8x16_t value, uint8_t index)
+{
+    return simde_vget_lane_u8(value, index);
 }
 
-namespace SIMD = WTF::SIMD;
+ALWAYS_INLINE uint16_t extract(simde_uint16x8_t value, uint8_t index)
+{
+    return simde_vget_lane_u16(value, index);
+}
+
+ALWAYS_INLINE uint32_t extract(simde_uint32x4_t value, uint8_t index)
+{
+    return simde_vget_lane_u32(value, index);
+}
+
+ALWAYS_INLINE uint64_t extract(simde_uint64x2_t value, uint8_t index)
+{
+    return simde_vget_lane_u64(value, index);
+}
+
+ALWAYS_INLINE int8_t extract(simde_int8x16_t value, uint8_t index)
+{
+    return simde_vget_lane_s8(value, index);
+}
+
+ALWAYS_INLINE int16_t extract(simde_int16x8_t value, uint8_t index)
+{
+    return simde_vget_lane_s16(value, index);
+}
+
+ALWAYS_INLINE int32_t extract(simde_int32x4_t value, uint8_t index)
+{
+    return simde_vget_lane_s32(value, index);
+}
+
+ALWAYS_INLINE int64_t extract(simde_int64x2_t value, uint8_t index)
+{
+    return simde_vget_lane_s64(value, index);
+}
+
+ALWAYS_INLINE simde_float16_t extract(simde_float16x8_t value, uint8_t index)
+{
+    return simde_vget_lane_f16(value, index);
+}
+
+ALWAYS_INLINE simde_float32_t extract(simde_float32x4_t value, uint8_t index)
+{
+    return simde_vget_lane_f32(value, index);
+}
