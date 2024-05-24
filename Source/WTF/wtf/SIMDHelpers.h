@@ -329,3 +329,7 @@ ALWAYS_INLINE simde_float32_t extract(simde_float32x4_t value, uint8_t index)
 {
     return simde_vget_lane_f32(value, index);
 }
+
+}
+
+namespace SIMD = WTF::SIMD;
