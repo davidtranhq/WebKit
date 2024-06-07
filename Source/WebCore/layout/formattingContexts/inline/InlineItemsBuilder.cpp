@@ -23,6 +23,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// #include <fstream>
+// #include <iostream>
+
 #include "config.h"
 #include "InlineItemsBuilder.h"
 
@@ -65,6 +68,41 @@ static std::optional<WhitespaceContent> moveToNextNonWhitespacePosition(std::spa
         ++nextNonWhiteSpacePosition;
     }
     return nextNonWhiteSpacePosition == startPosition ? std::nullopt : std::make_optional(WhitespaceContent { nextNonWhiteSpacePosition - startPosition, hasWordSeparatorCharacter });
+
+
+    // using UnsignedType = std::make_unsigned_t<CharacterType>;
+    // constexpr auto charactersPerRegister = SIMD::stride<UnsignedType>;
+    // constexpr auto newlineMask = SIMD::splat<UnsignedType>(newlineCharacter);
+    // constexpr auto spaceMask = SIMD::splat<UnsignedType>(space);
+    // constexpr auto tabMask = SIMD::splat<UnsignedType>(tabCharacter);
+
+    // auto nextNonWhiteSpacePosition = startPosition;
+    // auto* rawCharacters = characters.data(); // Not using characters[nextNonWhiteSpacePosition] to bypass the bounds check.
+
+    // while (nextNonWhiteSpacePosition < characters.size()) {
+    //     const auto charactersLeft = characters.size() - nextNonWhiteSpacePosition;
+    //     if (charactersLeft < charactersPerRegister && isWhitespaceCharacter(rawCharacters[nextNonWhiteSpacePosition])) {
+    //         if (UNLIKELY(stopAtWordSeparatorBoundary && hasWordSeparatorCharacter && !isWordSeparatorCharacter))
+    //             break;
+    //         ++nextNonWhiteSpacePosition;
+    //     } else {
+    //         const auto characterVector = SIMD::load(bitwise_cast<const UnsignedType*>(rawCharacters) + nextNonWhiteSpacePosition);
+    //         auto whitespaceMatches = SIMD::equal(characterVector, spaceMask);
+    //         if (!preserveNewline)
+    //             whitespaceMatches = SIMD::merge(whitespaceMatches, SIMD::equal(characterVector, newlineMask));
+    //         if (!preserveTab)
+    //             whitespaceMatches = SIMD::merge(whitespaceMatches, SIMD::equal(characterVector, tabMask));
+    //         const auto nonWhitespaceMatches = SIMD::bitNot(whitespaceMatches);
+    //         auto lane = SIMD::findFirstNonZeroIndex(nonWhitespaceMatches);
+    //         if (!lane) {
+    //             nextNonWhiteSpacePosition += charactersPerRegister;
+    //         } else {
+    //             nextNonWhiteSpacePosition += lane.value();
+    //             break;
+    //         }
+    //     }
+    // }
+    // return nextNonWhiteSpacePosition == startPosition ? std::nullopt : std::make_optional(WhitespaceContent { nextNonWhiteSpacePosition - startPosition, hasWordSeparatorCharacter });
 }
 
 static unsigned moveToNextBreakablePosition(unsigned startPosition, CachedLineBreakIteratorFactory& lineBreakIteratorFactory, const RenderStyle& style)
@@ -817,6 +855,48 @@ void InlineItemsBuilder::handleTextContent(const InlineTextBox& inlineTextBox, I
             });
             currentPosition = endPosition;
             return true;
+
+            // if (style.nbspMode() != NBSPMode::Space)
+            //     return false;
+            // auto startPosition = currentPosition;
+            // auto findEndOfNonBreakingSpace = [&] (const auto& span) {
+            //     return currentPosition;
+            //     using CharacterType = std::remove_reference<decltype(span)>::type::element_type;
+            //     using UnsignedType = std::make_unsigned_t<CharacterType>;
+            //     constexpr auto charactersPerRegister = SIMD::stride<UnsignedType>;
+            //     constexpr auto noBreakSpaceMask = SIMD::splat<UnsignedType>(noBreakSpace);
+            //     auto startPosition = currentPosition;
+            //     auto endPosition = startPosition;
+            //     while (endPosition < contentLength) {
+            //         if (endPosition + charactersPerRegister <= contentLength) {
+            //             const auto characterVector = SIMD::load(bitwise_cast<const UnsignedType*>(span.data()) + endPosition);
+            //             auto noBreakSpaceMatches = SIMD::equal(characterVector, noBreakSpaceMask);
+            //             auto lane = SIMD::findFirstNonZeroIndex(noBreakSpaceMatches);
+            //             if (!lane) {
+            //                 endPosition += charactersPerRegister;
+            //             } else {
+            //                 endPosition += lane.value();
+            //                 break;
+            //             }
+
+            //         } else {
+            //             if (text[endPosition] != noBreakSpace)
+            //                 break;
+            //             ++endPosition;
+            //         }
+            //     }
+            //     return endPosition;
+            // };
+            // auto endPosition = text.is8Bit()
+            //     ? findEndOfNonBreakingSpace(text.span8())
+            //     : findEndOfNonBreakingSpace(text.span16());
+            // if (startPosition == endPosition)
+            //     return false;
+            // inlineItemList.appendUsingFunctor(endPosition - startPosition, [&](size_t offset) {
+            //     return InlineTextItem::createNonWhitespaceItem(inlineTextBox, startPosition + offset, 1, UBIDI_DEFAULT_LTR, false, { });
+            // });
+            // currentPosition = endPosition;
+            // return true;
         };
         if (handleNonBreakingSpace())
             continue;
