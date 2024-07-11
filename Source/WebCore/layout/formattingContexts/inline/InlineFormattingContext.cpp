@@ -146,6 +146,11 @@ InlineLayoutResult InlineFormattingContext::layout(const ConstraintsForInlineCon
         auto balancedLineWidths = balancer.computeBalanceConstraints();
         if (balancedLineWidths)
             layoutState().setAvailableLineWidthOverride({ *balancedLineWidths });
+    } else if (root().style().textWrapMode() == TextWrapMode::Wrap && root().style().textWrapStyle() == TextWrapStyle::Pretty) {
+        auto balancer = InlineContentBalancer { *this, inlineItemList, constraints.horizontal() };
+        auto balancedLineWidths = balancer.computeBalanceConstraints();
+        if (balancedLineWidths)
+            layoutState().setAvailableLineWidthOverride({ *balancedLineWidths });
     }
 
     if (TextOnlySimpleLineBuilder::isEligibleForSimplifiedTextOnlyInlineLayoutByContent(inlineContentCache().inlineItems(), layoutState().placedFloats()) && TextOnlySimpleLineBuilder::isEligibleForSimplifiedInlineLayoutByStyle(root().style())) {
