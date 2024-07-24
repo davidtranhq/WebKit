@@ -31,6 +31,7 @@
 #include "FontCascade.h"
 #include "InlineContentBalancer.h"
 #include "InlineContentCache.h"
+#include "InlineContentPrettifier.h"
 #include "InlineDamage.h"
 #include "InlineDisplayBox.h"
 #include "InlineDisplayContentBuilder.h"
@@ -147,10 +148,10 @@ InlineLayoutResult InlineFormattingContext::layout(const ConstraintsForInlineCon
         if (balancedLineWidths)
             layoutState().setAvailableLineWidthOverride({ *balancedLineWidths });
     } else if (root().style().textWrapMode() == TextWrapMode::Wrap && root().style().textWrapStyle() == TextWrapStyle::Pretty) {
-        auto balancer = InlineContentBalancer { *this, inlineItemList, constraints.horizontal() };
-        auto balancedLineWidths = balancer.computeBalanceConstraints();
-        if (balancedLineWidths)
-            layoutState().setAvailableLineWidthOverride({ *balancedLineWidths });
+        auto prettifier = InlineContentPrettifier { *this, inlineItemList, constraints.horizontal() };
+        auto prettifiedLineWidths = prettifier.computePrettyConstraints();
+        if (prettifiedLineWidths)
+            layoutState().setAvailableLineWidthOverride({ *prettifiedLineWidths });
     }
 
     if (TextOnlySimpleLineBuilder::isEligibleForSimplifiedTextOnlyInlineLayoutByContent(inlineContentCache().inlineItems(), layoutState().placedFloats()) && TextOnlySimpleLineBuilder::isEligibleForSimplifiedInlineLayoutByStyle(root().style())) {

@@ -23,7 +23,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <iostream>
 #include "config.h"
 #include "InlineContentPrettifier.h"
 
@@ -177,7 +176,6 @@ std::optional<Vector<LayoutUnit>> InlineContentPrettifier::computePrettyConstrai
     size_t startLine = 0;
     auto prettifiedLineWidths = Vector<LayoutUnit> {};
     for (auto chunkSize : chunkSizes) {
-        std::cout << "Prettifying chunk of size: " << chunkSize << '\n';
         bool isFirstChunk = !startLine;
         auto rangeToPrettify = InlineItemRange { m_originalLineInlineItemRanges[startLine].startIndex(), m_originalLineInlineItemRanges[startLine + chunkSize - 1].endIndex() };
         auto prettifiedLineWidthsForChunk = std::optional<Vector<LayoutUnit>> {};
@@ -303,7 +301,6 @@ std::optional<Vector<LayoutUnit>> InlineContentPrettifier::prettifyInlineItemRan
     };
     // Check if we found no solution
     if (std::isinf(bestBreak(state[numberOfBreakOpportunities - 1]).accumulatedCost)) {
-        std::cout << "No pretty solution\n";
         return std::nullopt;
     }
 
@@ -312,14 +309,8 @@ std::optional<Vector<LayoutUnit>> InlineContentPrettifier::prettifyInlineItemRan
     size_t breakIndex = numberOfBreakOpportunities - 1;
     do {
         breaks.append(breakOpportunities[breakIndex]);
-        std::cout << "At break: " << breakIndex << '\n';
-        for (const Entry& entry : state[breakIndex])
-            std::cout << "cost: " << entry.accumulatedCost << ", prevBreak: " << entry.previousBreakIndex << ", lineWidth: " << entry.lastLineWidth << '\n';
-        std::cout << "Moving to new break index: ";
         breakIndex = bestBreak(state[breakIndex]).previousBreakIndex;
-        std::cout << breakIndex << '\n';
     } while (breakIndex);
-    std::cout << "Done\n";
     breaks.reverse();
 
     // Compute final line widths
@@ -330,7 +321,6 @@ std::optional<Vector<LayoutUnit>> InlineContentPrettifier::prettifyInlineItemRan
         auto indentWidth = !i ? firstLineTextIndent : textIndent;
         SlidingWidth slidingWidth { *this, m_inlineItemList, start, end, !i && isFirstChunk, !i };
         lineWidths[i] = LayoutUnit::fromFloatCeil(indentWidth + slidingWidth.width() + LayoutUnit::epsilon());
-        std::cout << "Line width " << i << " : " << (float)lineWidths[i] << '\n';
     }
 
     return lineWidths;
