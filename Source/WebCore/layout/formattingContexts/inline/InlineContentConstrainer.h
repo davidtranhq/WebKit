@@ -32,6 +32,8 @@
 #include "InlineLineBuilder.h"
 #include "InlineTextItem.h"
 
+#include <optional>
+
 namespace WebCore {
 namespace Layout {
 
@@ -51,6 +53,9 @@ private:
     bool shouldTrimLeading(size_t inlineItemIndex, bool useFirstLineStyle, bool isFirstLineInChunk) const;
     bool shouldTrimTrailing(size_t inlineItemIndex, bool useFirstLineStyle) const;
     Vector<size_t> computeBreakOpportunities(InlineItemRange) const;
+    Vector<LayoutUnit> computeLineWidthsFromBreaks(InlineItemRange, const Vector<size_t>& breaks, bool isFirstChunk) const;
+    InlineLayoutUnit computeTextIndent(std::optional<bool> previousLineEndsWithLineBreak) const;
+
 
     InlineFormattingContext& m_inlineFormattingContext;
     const InlineItemList& m_inlineItemList;

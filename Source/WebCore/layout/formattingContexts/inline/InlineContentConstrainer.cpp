@@ -149,8 +149,8 @@ void InlineContentConstrainer::initialize()
         bool useFirstLineStyle = !lineIndex;
         bool isFirstLineInChunk = !lineIndex || m_originalLineEndsWithForcedBreak[lineIndex - 1];
         SlidingWidth lineSlidingWidth { *this, m_inlineItemList, lineLayoutResult.inlineItemRange.startIndex(), lineLayoutResult.inlineItemRange.endIndex(), useFirstLineStyle, isFirstLineInChunk };
-        auto previousLineEndsWithLineBreak = lineIndex ? std::optional<bool> { m_originalLineEndsWithForcedBreak[lineIndex - 1] } : std::nullopt;
-        auto textIndent = m_inlineFormattingContext.formattingUtils().computedTextIndent(InlineFormattingUtils::IsIntrinsicWidthMode::No, previousLineEndsWithLineBreak, m_maximumLineWidth);
+        const auto previousLineEndsWithLineBreak = lineIndex ? std::optional<bool> { m_originalLineEndsWithForcedBreak[lineIndex - 1] } : std::nullopt;
+        const auto textIndent = computeTextIndent(previousLineEndsWithLineBreak);
         m_originalLineWidths.append(textIndent + lineSlidingWidth.width());
 
         // If next line count would match (or exceed) the number of visible lines due to line-clamp, we can bail out early.
@@ -237,9 +237,9 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::balanceRangeWithLine
     auto numberOfBreakOpportunities = breakOpportunities.size();
 
     // Indentation offsets
-    auto previousLineEndsWithLineBreak = isFirstChunk ? std::nullopt : std::optional<bool> { true };
-    auto firstLineTextIndent = m_inlineFormattingContext.formattingUtils().computedTextIndent(InlineFormattingUtils::IsIntrinsicWidthMode::No, previousLineEndsWithLineBreak, m_maximumLineWidth);
-    auto textIndent = m_inlineFormattingContext.formattingUtils().computedTextIndent(InlineFormattingUtils::IsIntrinsicWidthMode::No, false, m_maximumLineWidth);
+    const auto previousLineEndsWithLineBreak = isFirstChunk ? std::nullopt : std::optional<bool> { true };
+    const auto firstLineTextIndent = computeTextIndent(previousLineEndsWithLineBreak);
+    const auto textIndent = computeTextIndent(false);
 
     struct Entry {
         float accumulatedCost { std::numeric_limits<float>::infinity() };
@@ -315,17 +315,7 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::balanceRangeWithLine
         breakIndex = state[breakIndex][line].previousBreakIndex;
     }
 
-    // Compute final line widths
-    Vector<LayoutUnit> lineWidths(numberOfLines);
-    for (size_t i = 0; i < numberOfLines; i++) {
-        auto start = !i ? range.startIndex() : breaks[i - 1];
-        auto end = breaks[i];
-        auto indentWidth = !i ? firstLineTextIndent : textIndent;
-        SlidingWidth slidingWidth { *this, m_inlineItemList, start, end, !i && isFirstChunk, !i };
-        lineWidths[i] = LayoutUnit::fromFloatCeil(indentWidth + slidingWidth.width() + LayoutUnit::epsilon());
-    }
-
-    return lineWidths;
+    return computeLineWidthsFromBreaks(range, breaks, isFirstChunk);
 }
 
 std::optional<Vector<LayoutUnit>> InlineContentConstrainer::balanceRangeWithNoLineRequirement(InlineItemRange range, InlineLayoutUnit idealLineWidth, bool isFirstChunk)
@@ -340,9 +330,9 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::balanceRangeWithNoLi
     auto numberOfBreakOpportunities = breakOpportunities.size();
 
     // Indentation offsets
-    auto previousLineEndsWithLineBreak = isFirstChunk ? std::nullopt : std::optional<bool> { true };
-    auto firstLineTextIndent = m_inlineFormattingContext.formattingUtils().computedTextIndent(InlineFormattingUtils::IsIntrinsicWidthMode::No, previousLineEndsWithLineBreak, m_maximumLineWidth);
-    auto textIndent = m_inlineFormattingContext.formattingUtils().computedTextIndent(InlineFormattingUtils::IsIntrinsicWidthMode::No, false, m_maximumLineWidth);
+    const auto previousLineEndsWithLineBreak = isFirstChunk ? std::nullopt : std::optional<bool> { true };
+    const auto firstLineTextIndent = computeTextIndent(previousLineEndsWithLineBreak);
+    const auto textIndent = computeTextIndent(false);
 
     struct Entry {
         float accumulatedCost { std::numeric_limits<float>::infinity() };
@@ -415,17 +405,7 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::balanceRangeWithNoLi
     } while (breakIndex);
     breaks.reverse();
 
-    // Compute final line widths
-    Vector<LayoutUnit> lineWidths(breaks.size());
-    for (size_t i = 0; i < breaks.size(); i++) {
-        auto start = !i ? range.startIndex() : breaks[i - 1];
-        auto end = breaks[i];
-        auto indentWidth = !i ? firstLineTextIndent : textIndent;
-        SlidingWidth slidingWidth { *this, m_inlineItemList, start, end, !i && isFirstChunk, !i };
-        lineWidths[i] = LayoutUnit::fromFloatCeil(indentWidth + slidingWidth.width() + LayoutUnit::epsilon());
-    }
-
-    return lineWidths;
+    return computeLineWidthsFromBreaks(range, breaks, isFirstChunk);
 }
 
 std::optional<Vector<LayoutUnit>> InlineContentConstrainer::prettifyRange(InlineItemRange range, InlineLayoutUnit idealLineWidth, bool isFirstChunk)
@@ -440,15 +420,17 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::prettifyRange(Inline
     auto numberOfBreakOpportunities = breakOpportunities.size();
 
     // Indentation offsets
-    auto previousLineEndsWithLineBreak = isFirstChunk ? std::nullopt : std::optional<bool> { true };
-    auto firstLineTextIndent = m_inlineFormattingContext.formattingUtils().computedTextIndent(InlineFormattingUtils::IsIntrinsicWidthMode::No, previousLineEndsWithLineBreak, m_maximumLineWidth);
-    auto textIndent = m_inlineFormattingContext.formattingUtils().computedTextIndent(InlineFormattingUtils::IsIntrinsicWidthMode::No, false, m_maximumLineWidth);
+    const auto previousLineEndsWithLineBreak = isFirstChunk ? std::nullopt : std::optional<bool> { true };
+    const auto firstLineTextIndent = m_inlineFormattingContext.formattingUtils().computedTextIndent(InlineFormattingUtils::IsIntrinsicWidthMode::No, previousLineEndsWithLineBreak, m_maximumLineWidth);
+    const auto textIndent = m_inlineFormattingContext.formattingUtils().computedTextIndent(InlineFormattingUtils::IsIntrinsicWidthMode::No, false, m_maximumLineWidth);
+
 
     struct Entry {
         float accumulatedCost { std::numeric_limits<float>::infinity() };
         size_t previousBreakIndex { 0 };
         InlineLayoutUnit lastLineWidth { 0 };
         bool endsWithHyphen { false };
+
         auto operator<=>(const Entry&) const = default;
     };
 
@@ -533,17 +515,7 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::prettifyRange(Inline
     } while (breakIndex);
     breaks.reverse();
 
-    // Compute final line widths
-    Vector<LayoutUnit> lineWidths(breaks.size());
-    for (size_t i = 0; i < breaks.size(); i++) {
-        auto start = !i ? range.startIndex() : breaks[i - 1];
-        auto end = breaks[i];
-        auto indentWidth = !i ? firstLineTextIndent : textIndent;
-        SlidingWidth slidingWidth { *this, m_inlineItemList, start, end, !i && isFirstChunk, !i };
-        lineWidths[i] = LayoutUnit::fromFloatCeil(indentWidth + slidingWidth.width() + LayoutUnit::epsilon());
-    }
-
-    return lineWidths;
+    return computeLineWidthsFromBreaks(range, breaks, isFirstChunk);
 }
 
 InlineLayoutUnit InlineContentConstrainer::inlineItemWidth(size_t inlineItemIndex, bool useFirstLineStyle) const
@@ -692,6 +664,26 @@ Vector<size_t> InlineContentConstrainer::computeBreakOpportunities(InlineItemRan
         breakOpportunities.append(currentIndex);
     }
     return breakOpportunities;
+}
+
+Vector<LayoutUnit> InlineContentConstrainer::computeLineWidthsFromBreaks(InlineItemRange inlineItems, const Vector<size_t>& breaks, bool isFirstChunk) const
+{
+    Vector<LayoutUnit> lineWidths(breaks.size());
+    const auto firstLineTextIndent = computeTextIndent(isFirstChunk ? std::nullopt : std::make_optional(true));
+    const auto textIndent = computeTextIndent(false);
+    for (size_t i = 0; i < breaks.size(); i++) {
+        auto start = !i ? inlineItems.startIndex() : breaks[i - 1];
+        auto end = breaks[i];
+        auto indentWidth = !i ? firstLineTextIndent : textIndent;
+        SlidingWidth slidingWidth { *this, m_inlineItemList, start, end, !i && isFirstChunk, !i };
+        lineWidths[i] = LayoutUnit::fromFloatCeil(indentWidth + slidingWidth.width() + LayoutUnit::epsilon());
+    }
+    return lineWidths;
+}
+
+InlineLayoutUnit InlineContentConstrainer::computeTextIndent(std::optional<bool> previousLineEndsWithLineBreak) const
+{
+    return m_inlineFormattingContext.formattingUtils().computedTextIndent(InlineFormattingUtils::IsIntrinsicWidthMode::No, previousLineEndsWithLineBreak, m_maximumLineWidth);
 }
 
 }
