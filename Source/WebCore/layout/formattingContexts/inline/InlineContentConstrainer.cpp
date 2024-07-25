@@ -168,6 +168,8 @@ void InlineContentConstrainer::initialize()
 
 std::optional<Vector<LayoutUnit>> InlineContentConstrainer::computeParagraphLevelConstraints(TextWrapStyle wrapStyle)
 {
+    ASSERT(wrapStyle == TextWrapStyle::Balance || wrapStyle == TextWrapStyle::Pretty);
+
     if (m_cannotConstrainContent || m_hasSingleLineVisibleContent)
         return std::nullopt;
 
