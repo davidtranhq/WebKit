@@ -439,6 +439,13 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::prettifyRange(Inline
     // state[i] holds the optimal set of line breaks where the last line break is right
     // before m_inlineItemList[breakOpportunities[i]]. "Optimal" in this context means the
     // lowest possible accumulated cost.
+    //
+    // We keep track of the `numberOfBestSolutions` best solutions for each breakpoint,
+    // so that if one solution leads to an invalid breaking (e.g. due to an orphan),
+    // we can backtrack and find a valid breaking.
+    //
+    // The `numberOfBestSolutions` constant represents a tradeoff: a higher number gives
+    // higher quality breakings at the cost of speed.
     Vector<PriorityQueue<Entry, isGreaterThan>> state(numberOfBreakOpportunities);
     constexpr size_t numberOfBestSolutions = 5;
     auto recordAndMaintainBestSolutions = [&](size_t breakIndex, Entry solution) {
@@ -489,7 +496,11 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::prettifyRange(Inline
                 auto candidateLineCost = computeCost(candidateLineWidth, idealLineWidth);
                 auto accumulatedCost = candidateLineCost + entry.accumulatedCost;
                 if (breakIndex == numberOfBreakOpportunities - 1) {
-                    if (candidateLineWidth > previousLineWidth * 0.8)
+                    // the last line should be slightly shorter than the rest of the paragraph
+                    if (candidateLineWidth > previousLineWidth * 0.9)
+                        accumulatedCost = std::numeric_limits<float>::infinity();
+                    // the last line should have more than one word on it
+                    if (startIndex + 1 == breakIndex)
                         accumulatedCost = std::numeric_limits<float>::infinity();
                 }
                 recordAndMaintainBestSolutions(breakIndex, Entry { accumulatedCost, startIndex, candidateLineWidth });
