@@ -188,7 +188,7 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::computeParagraphLeve
         chunkSizes.append(currentChunkSize);
 
 
-    // Balance each chunk
+    // Constrain each chunk
     auto constrainChunk = [&](auto chunkStart, auto chunkSize) -> std::optional<Vector<LayoutUnit>> {
         const bool isFirstChunk = !chunkStart;
         auto rangeToConstrain = InlineItemRange { m_originalLineInlineItemRanges[chunkStart].startIndex(), m_originalLineInlineItemRanges[chunkStart + chunkSize - 1].endIndex() };
@@ -197,13 +197,16 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::computeParagraphLeve
         InlineLayoutUnit totalWidth = 0;
         for (size_t line = 0; line < chunkSize; line++)
             totalWidth += m_originalLineWidths[chunkStart + line];
-        const InlineLayoutUnit idealLineWidth = totalWidth / chunkSize;
         if (wrapStyle == TextWrapStyle::Balance) {
+            const InlineLayoutUnit idealLineWidth = totalWidth / chunkSize;
             if (m_numberOfLinesInOriginalLayout <= maximumLinesToBalanceWithLineRequirement)
                 return balanceRangeWithLineRequirement(rangeToConstrain, idealLineWidth, chunkSize, isFirstChunk);
             else
                 return balanceRangeWithNoLineRequirement(rangeToConstrain, idealLineWidth, isFirstChunk);
         } else if (wrapStyle == TextWrapStyle::Pretty) {
+            // Targetting a line length slightly shorter than the maximum allows the algorithm to both
+            // overshoot and undershoot the target line length, giving more flexibility in the solution search
+            const InlineLayoutUnit idealLineWidth = m_maximumLineWidth * 0.95;
             return prettifyRange(rangeToConstrain, idealLineWidth, isFirstChunk);
         }
         ASSERT_NOT_REACHED();
@@ -494,15 +497,18 @@ std::optional<Vector<LayoutUnit>> InlineContentConstrainer::prettifyRange(Inline
             for (const auto& entry : state[startIndex]) {
                 auto previousLineWidth = entry.lastLineWidth;
                 auto candidateLineCost = computeCost(candidateLineWidth, idealLineWidth);
-                auto accumulatedCost = candidateLineCost + entry.accumulatedCost;
                 if (breakIndex == numberOfBreakOpportunities - 1) {
-                    // the last line should be slightly shorter than the rest of the paragraph
-                    if (candidateLineWidth > previousLineWidth * 0.9)
-                        accumulatedCost = std::numeric_limits<float>::infinity();
-                    // the last line should have more than one word on it
-                    if (startIndex + 1 == breakIndex)
-                        accumulatedCost = std::numeric_limits<float>::infinity();
+                    // Keeping the last line width longer than 20% of the previous is a heuristic to avoid orphan and "orphan-like" paragraph endings
+                    // (lines that have more than one word but are still sufficiently short to appear like an orphan)
+                    const auto minimumLastLineWidth = previousLineWidth * 0.2;
+                    const auto maximumLastLineWidth = previousLineWidth;
+                    candidateLineCost = 0;
+                    if (candidateLineWidth < previousLineWidth * minimumLastcandidateLineWidth >= previousLineWidth * maximumLastLineLengthToPreviousLineRatio)
+                        candidateLineCost = std::numeric_limits<float>::infinity();
+                    if (candidateLineWidth < previousLineWidth * minimumLastLineLengthToPreviousLineRatio)
+                        candidateLineCost = std::numeric_limits<float>::infinity();
                 }
+                auto accumulatedCost = candidateLineCost + entry.accumulatedCost;
                 recordAndMaintainBestSolutions(breakIndex, Entry { accumulatedCost, startIndex, candidateLineWidth });
             }
         }
